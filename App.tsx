@@ -1,10 +1,14 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
+import { getApps } from 'firebase/app'; 
+import './src/services/firebase';
 
 export default function App() {
+  const apps = getApps();
+
   return (
     <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
+      <Text>{apps.length ? 'Firebase inicializado' : 'Firebase não inicializado'}</Text>
       <StatusBar style="auto" />
     </View>
   );
