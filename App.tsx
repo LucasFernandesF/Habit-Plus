@@ -1,25 +1,45 @@
+import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
-import { getApps } from 'firebase/app'; 
-import './src/services/firebase';
-import AuthTest from './src/tests/AuthTest';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import AppNavigator from './src/navigation/AppNavigator';
+import { observeAuth } from './src/services/auth';
+import { User } from 'firebase/auth';
 
 export default function App() {
-  const apps = getApps();
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = observeAuth((currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007bff" />
+        <StatusBar style="auto" />
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      <AuthTest />
+    <>
+      <AppNavigator />
       <StatusBar style="auto" />
-    </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  loadingContainer: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
   },
 });
