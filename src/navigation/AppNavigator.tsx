@@ -10,12 +10,14 @@ import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 import HomeScreen from '../screens/HomeScreen';
+import EmailVerificationScreen from '../screens/EmailVerificationScreen'; // ← Vamos criar esta tela
 
 export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   ResetPassword: undefined;
   Home: undefined;
+  EmailVerification: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -25,10 +27,8 @@ const AppNavigator = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log('AppNavigator - Setting up auth observer');
-    
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      console.log('AppNavigator - Auth State Changed:', currentUser?.email);
+      console.log('AppNavigator - Auth State:', currentUser?.email, 'Verified:', currentUser?.emailVerified);
       setUser(currentUser);
       setLoading(false);
     });
@@ -36,8 +36,7 @@ const AppNavigator = () => {
     return unsubscribe;
   }, []);
 
-  console.log('AppNavigator - Current user:', user?.email);
-  console.log('AppNavigator - Loading:', loading);
+  console.log('AppNavigator - Current user:', user?.email, 'Verified:', user?.emailVerified);
 
   if (loading) {
     return (
@@ -49,14 +48,20 @@ const AppNavigator = () => {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator 
+      <Stack.Navigator
         screenOptions={{
           headerShown: false
         }}
       >
         {user ? (
-          <Stack.Screen name="Home" component={HomeScreen} />
+          user.emailVerified ? (
+            <Stack.Screen name="Home" component={HomeScreen} />
+          ) : (
+            // Usuário logado mas email não verificado
+            <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
+          )
         ) : (
+          // Usuário não logado
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />

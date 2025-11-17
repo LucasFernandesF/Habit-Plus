@@ -24,10 +24,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Erro', 'Por favor, preencha todos os campos');
-      return;
+    if (!email.trim() || !password.trim()) {
+      return Alert.alert('Erro', 'Preencha todos os campos.');
     }
+
+    if (!email.includes("@")) {
+      return Alert.alert("Erro", "Digite um email válido.");
+    }
+
 
     setLoading(true);
     try {
@@ -35,14 +39,20 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       // O observador de autenticação no App.tsx irá redirecionar automaticamente
       console.log('Login realizado com sucesso!');
     } catch (error: any) {
-      Alert.alert('Erro no Login', error.message);
+      const message = error.message || "";
+      if (message.includes("auth/invalid-credential")) {
+        Alert.alert("Erro", "Dados inseridos são inválidos. Por favor, verifique e tente novamente.");
+      }
+      else {
+        Alert.alert("Erro no Login", message);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
@@ -59,7 +69,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             autoCapitalize="none"
             keyboardType="email-address"
           />
-          
+
           <TextInput
             style={styles.input}
             placeholder="Senha"
@@ -68,8 +78,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             secureTextEntry
           />
 
-          <TouchableOpacity 
-            style={styles.loginButton} 
+          <TouchableOpacity
+            style={styles.loginButton}
             onPress={handleLogin}
             disabled={loading}
           >
@@ -84,7 +94,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             <TouchableOpacity onPress={() => navigation.navigate('Register')}>
               <Text style={styles.link}>Criar uma conta</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity onPress={() => navigation.navigate('ResetPassword')}>
               <Text style={styles.link}>Esqueci minha senha</Text>
             </TouchableOpacity>
