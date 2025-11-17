@@ -8,17 +8,16 @@ import {
   ActivityIndicator,
   ScrollView
 } from 'react-native';
-import { resendEmailVerification, logout } from '../services/auth'; // ← REMOVA 'auth' daqui
+import { resendEmailVerification, logout } from '../services/auth'; 
 import { colors } from '../theme/colors';
 import { onAuthStateChanged, sendEmailVerification } from 'firebase/auth';
-import { auth } from '../services/firebase'; // ← IMPORTE AQUI
+import { auth } from '../services/firebase';
 
 const EmailVerificationScreen = ({ navigation }: any) => {
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
-  const [user, setUser] = useState(auth.currentUser); // ← Estado local para o usuário
+  const [user, setUser] = useState(auth.currentUser); 
 
-  // Observador para atualizar o usuário
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -40,7 +39,7 @@ const EmailVerificationScreen = ({ navigation }: any) => {
     try {
       if (user) {
         await sendEmailVerification(user);
-        setCooldown(60); // 60 segundos de cooldown
+        setCooldown(60);
         Alert.alert(
           'Email enviado!',
           'Enviamos um novo link de verificação para seu email. Verifique sua caixa de entrada.'
@@ -61,7 +60,7 @@ const EmailVerificationScreen = ({ navigation }: any) => {
       
       if (updatedUser?.emailVerified) {
         Alert.alert('Sucesso!', 'Email verificado com sucesso!');
-        // O observador no AppNavigator vai redirecionar automaticamente para Home
+
       } else {
         Alert.alert('Atenção', 'Email ainda não verificado. Verifique sua caixa de entrada.');
       }
@@ -80,7 +79,6 @@ const EmailVerificationScreen = ({ navigation }: any) => {
     }
   };
 
-  // Se não há usuário, mostra mensagem
   if (!user) {
     return (
       <View style={styles.container}>

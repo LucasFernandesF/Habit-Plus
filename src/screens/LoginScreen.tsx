@@ -9,7 +9,8 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  ScrollView
+  ScrollView,
+  Image
 } from 'react-native';
 import { signIn } from '../services/auth';
 import { colors } from '../theme/colors';
@@ -32,11 +33,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       return Alert.alert("Erro", "Digite um email válido.");
     }
 
-
     setLoading(true);
     try {
       await signIn(email, password);
-      // O observador de autenticação no App.tsx irá redirecionar automaticamente
       console.log('Login realizado com sucesso!');
     } catch (error: any) {
       const message = error.message || "";
@@ -57,7 +56,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <Text style={styles.title}>HabitPlus</Text>
+        { }
+        <Image
+          source={require('../../assets/icons/logo.jpg')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
         <Text style={styles.subtitle}>Faça login na sua conta</Text>
 
         <View style={styles.form}>
@@ -114,6 +118,13 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: 20,
+    alignItems: 'center',
+  },
+  logo: {
+    width: 480,
+    height: undefined,
+    aspectRatio: 160 / 48, 
+    marginBottom: 10,
   },
   title: {
     fontSize: 32,
