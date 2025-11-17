@@ -10,7 +10,7 @@ import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 import HomeScreen from '../screens/HomeScreen';
-import EmailVerificationScreen from '../screens/EmailVerificationScreen'; // ← Vamos criar esta tela
+import EmailVerificationScreen from '../screens/EmailVerificationScreen'; 
 
 export type RootStackParamList = {
   Login: undefined;
@@ -57,11 +57,9 @@ const AppNavigator = () => {
           user.emailVerified ? (
             <Stack.Screen name="Home" component={HomeScreen} />
           ) : (
-            // Usuário logado mas email não verificado
             <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
           )
         ) : (
-          // Usuário não logado
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
