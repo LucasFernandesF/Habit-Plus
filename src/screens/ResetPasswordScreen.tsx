@@ -12,7 +12,7 @@ import {
   ScrollView
 } from 'react-native';
 import { resetPassword } from '../services/auth';
-import { colors } from '../theme/colors'; // Importe as cores
+import { colors } from '../theme/colors';
 
 interface ResetPasswordScreenProps {
   navigation: any;
@@ -28,11 +28,16 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ navigation })
       return;
     }
 
+    if (!email.includes("@") || !email.includes(".")) {
+      Alert.alert("Erro", "Por favor, insira um email válido");
+      return;
+    }
+    
     setLoading(true);
     try {
       await resetPassword(email);
       Alert.alert(
-        'Email Enviado', 
+        'Email Enviado',
         'Enviamos um link para redefinir sua senha para o email informado.',
         [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
       );
@@ -44,7 +49,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ navigation })
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
@@ -65,8 +70,8 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ navigation })
             keyboardType="email-address"
           />
 
-          <TouchableOpacity 
-            style={styles.resetButton} 
+          <TouchableOpacity
+            style={styles.resetButton}
             onPress={handleResetPassword}
             disabled={loading}
           >
@@ -77,8 +82,8 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ navigation })
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.backButton} 
+          <TouchableOpacity
+            style={styles.backButton}
             onPress={() => navigation.navigate('Login')}
           >
             <Text style={styles.backButtonText}>Voltar para o login</Text>

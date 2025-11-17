@@ -12,7 +12,7 @@ import {
   ScrollView
 } from 'react-native';
 import { signUp } from '../services/auth';
-import { colors } from '../theme/colors'; // Importe as cores
+import { colors } from '../theme/colors';
 
 interface RegisterScreenProps {
   navigation: any;
@@ -41,20 +41,44 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
       return;
     }
 
+    if (email.indexOf('@') === -1) {
+      Alert.alert('Erro', 'Por favor, insira um email válido');
+      return;
+    }
+
     setLoading(true);
     try {
       await signUp(email, password, { name });
-      Alert.alert('Sucesso', 'Conta criada com sucesso!');
-      navigation.navigate('Login');
+      Alert.alert(
+        "Verificação enviada!",
+        "Enviamos um link de verificação para seu email. Após verificar, faça login no app."
+      );
+      setTimeout(() => {
+        navigation.navigate("Login");
+      }, 500);
+
     } catch (error: any) {
-      Alert.alert('Erro no Cadastro', error.message);
+      const message = error.message || "";
+
+      if (message.includes("auth/email-already-in-use")) {
+        Alert.alert("Erro", "Este email já está cadastrado.");
+      }
+      else if (message.includes("auth/invalid-email")) {
+        Alert.alert("Erro", "Email inválido.");
+      }
+      else if (message.includes("auth/weak-password")) {
+        Alert.alert("Erro", "Senha muito fraca.");
+      }
+      else {
+        Alert.alert("Erro no Cadastro", message);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
@@ -70,7 +94,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
             value={name}
             onChangeText={setName}
           />
-          
+
           <TextInput
             style={styles.input}
             placeholder="Email"
@@ -80,7 +104,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
             autoCapitalize="none"
             keyboardType="email-address"
           />
-          
+
           <TextInput
             style={styles.input}
             placeholder="Senha"
@@ -99,8 +123,8 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
             secureTextEntry
           />
 
-          <TouchableOpacity 
-            style={styles.registerButton} 
+          <TouchableOpacity
+            style={styles.registerButton}
             onPress={handleRegister}
             disabled={loading}
           >
@@ -111,8 +135,8 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.backButton} 
+          <TouchableOpacity
+            style={styles.backButton}
             onPress={() => navigation.navigate('Login')}
           >
             <Text style={styles.backButtonText}>Voltar para o login</Text>
