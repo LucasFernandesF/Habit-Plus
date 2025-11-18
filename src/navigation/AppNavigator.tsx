@@ -11,6 +11,7 @@ import RegisterScreen from '../screens/RegisterScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 import HomeScreen from '../screens/HomeScreen';
 import EmailVerificationScreen from '../screens/EmailVerificationScreen'; 
+import AddHabitScreen from '../screens/AddHabitScreen';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -18,6 +19,7 @@ export type RootStackParamList = {
   ResetPassword: undefined;
   Home: undefined;
   EmailVerification: undefined;
+  AddHabit: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -55,7 +57,10 @@ const AppNavigator = () => {
       >
         {user ? (
           user.emailVerified ? (
+            <>
             <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="AddHabit" component={AddHabitScreen} />
+            </>
           ) : (
             <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
           )

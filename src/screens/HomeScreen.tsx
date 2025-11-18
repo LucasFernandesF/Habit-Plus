@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,8 +11,10 @@ import {
 } from 'react-native';
 import { colors } from '../theme/colors';
 import { logout } from '../services/auth';
+import { auth, db } from '../services/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { User } from 'firebase/auth';
 
-// Tipos temporários - depois virão do Firestore
 type Habit = {
   id: string;
   name: string;
@@ -77,6 +79,27 @@ const HomeScreen = ({ navigation }: any) => {
     { id: '5', name: 'Mental', icon: '🧠', count: 3 },
   ]);
 
+  const [userName, setUserName] = useState<string>('');
+
+  useEffect(() => {
+    const fetchUserName = async () => {
+      try {
+        const user = auth.currentUser;
+        if (user) {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setUserName(userData.name || '');
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao buscar nome do usuário:', error);
+      }
+    };
+
+    fetchUserName();
+  }, []);
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -106,11 +129,11 @@ const HomeScreen = ({ navigation }: any) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor={colors.primary} barStyle="light-content" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Bom dia! 👋</Text>
+          <Text style={styles.greeting}>Bom dia{userName ? `, ${userName}` : ''}! 👋 </Text>
           <Text style={styles.subtitle}>Seu progresso hoje</Text>
         </View>
         <TouchableOpacity style={styles.profileButton} onPress={handleLogout}>
@@ -125,16 +148,16 @@ const HomeScreen = ({ navigation }: any) => {
             <Text style={styles.progressTitle}>Progresso Diário</Text>
             <Text style={styles.progressPercentage}>{Math.round(progress)}%</Text>
           </View>
-          
+
           <View style={styles.progressBar}>
-            <View 
+            <View
               style={[
                 styles.progressFill,
                 { width: `${progress}%` }
-              ]} 
+              ]}
             />
           </View>
-          
+
           <Text style={styles.progressText}>
             {habits.filter(h => h.completed).length} de {habits.length} hábitos concluídos
           </Text>
@@ -142,8 +165,8 @@ const HomeScreen = ({ navigation }: any) => {
 
         {/* Categories */}
         <Text style={styles.sectionTitle}>Categorias</Text>
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.categoriesScroll}
         >
@@ -159,16 +182,16 @@ const HomeScreen = ({ navigation }: any) => {
         {/* Today's Habits */}
         <View style={styles.habitsHeader}>
           <Text style={styles.sectionTitle}>Hábitos de Hoje</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.addButton}
-            onPress={() => Alert.alert('Em breve', 'Funcionalidade de adicionar hábito em desenvolvimento!')}
+            onPress={() => navigation.navigate('AddHabit')}
           >
             <Text style={styles.addButtonText}>+ Novo</Text>
           </TouchableOpacity>
         </View>
 
         {habits.map(habit => (
-          <TouchableOpacity 
+          <TouchableOpacity
             key={habit.id}
             style={[
               styles.habitCard,
@@ -177,7 +200,7 @@ const HomeScreen = ({ navigation }: any) => {
             onPress={() => toggleHabit(habit.id)}
           >
             <View style={styles.habitLeft}>
-              <View 
+              <View
                 style={[
                   styles.habitColor,
                   { backgroundColor: habit.color }
@@ -198,7 +221,7 @@ const HomeScreen = ({ navigation }: any) => {
                 </View>
               </View>
             </View>
-            
+
             <View style={styles.habitRight}>
               <View style={styles.streakContainer}>
                 <Text style={styles.streakText}>🔥 {habit.streak}</Text>

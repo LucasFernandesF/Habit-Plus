@@ -89,7 +89,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
         <View style={styles.form}>
           <TextInput
             style={styles.input}
-            placeholder="Nome completo"
+            placeholder="Nome"
             placeholderTextColor={colors.text}
             value={name}
             onChangeText={setName}
