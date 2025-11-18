@@ -17,21 +17,22 @@ import { colors } from '../theme/colors';
 import { useNavigation } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { habitService } from '../services/habitService';
 
-// Categorias pré-definidas
 const categories = [
-  { id: 'health', name: 'Saúde e Bem-estar', color: '#732571', icon: '💊' },
+  { id: 'health', name: 'Saúde', color: '#732571', icon: '💊' },
   { id: 'work', name: 'Trabalho', color: '#964e94', icon: '💼' },
-  { id: 'study', name: 'Estudos', color: '#b977b8', icon: '📚' },
-  { id: 'finance', name: 'Finanças', color: '#dca0db', icon: '💰' },
-  { id: 'home', name: 'Casa', color: '#ffc9ff', icon: '🏠' },
-  { id: 'social', name: 'Social', color: '#732571', icon: '👥' },
-  { id: 'hobby', name: 'Hobbie', color: '#964e94', icon: '🎨' },
-  { id: 'tech', name: 'Tecnologia', color: '#b977b8', icon: '💻' },
-  { id: 'other', name: 'Outros', color: '#dca0db', icon: '📌' },
+  { id: 'study', name: 'Estudo', color: '#b977b8', icon: '📚' },
+  { id: 'fitness', name: 'Fitness', color: '#dca0db', icon: '💪' },
+  { id: 'mental', name: 'Mental', color: '#ffc9ff', icon: '🧠' },
+  { id: 'finance', name: 'Finanças', color: '#732571', icon: '💰' },
+  { id: 'home', name: 'Casa', color: '#964e94', icon: '🏠' },
+  { id: 'social', name: 'Social', color: '#b977b8', icon: '👥' },
+  { id: 'hobby', name: 'Hobbie', color: '#dca0db', icon: '🎨' },
+  { id: 'tech', name: 'Tecnologia', color: '#ffc9ff', icon: '💻' },
+  { id: 'other', name: 'Outros', color: '#732571', icon: '📌' },
 ];
 
-// Dias da semana
 const weekDays = [
   { id: 'sun', name: 'Dom', fullName: 'Domingo' },
   { id: 'mon', name: 'Seg', fullName: 'Segunda' },
@@ -44,54 +45,35 @@ const weekDays = [
 
 const AddHabitScreen = () => {
   const navigation = useNavigation();
-  
+
   const [habitName, setHabitName] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(categories[0]);
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [reminder, setReminder] = useState(false);
   const [reminderTime, setReminderTime] = useState('08:00');
   const [startDate, setStartDate] = useState(new Date());
-  
+  const [loading, setLoading] = useState(false);
+
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
-  const [showTimeModal, setShowTimeModal] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  // Toggle dia da semana
   const toggleDay = (dayId: string) => {
-    setSelectedDays(prev => 
-      prev.includes(dayId) 
+    setSelectedDays(prev =>
+      prev.includes(dayId)
         ? prev.filter(d => d !== dayId)
         : [...prev, dayId]
     );
   };
 
-  // Gerar horas de 5 em 5 minutos
-  const generateTimeSlots = () => {
-    const times = [];
-    for (let hour = 0; hour < 24; hour++) {
-      for (let minute = 0; minute < 60; minute += 5) {
-        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        times.push(timeString);
-      }
-    }
-    return times;
-  };
-
-  const timeSlots = generateTimeSlots();
-
-  // Formatar data para o calendário
-  const formatDateForCalendar = (date: Date) => {
-    return date.toISOString().split('T')[0];
-  };
-
-  // Selecionar data no calendário
   const handleDateSelect = (day: any) => {
-    setStartDate(new Date(day.dateString));
+    // Criar data no fuso local (sem problemas de UTC)
+    const selectedDate = new Date(day.dateString + 'T00:00:00');
+    setStartDate(selectedDate);
     setShowCalendarModal(false);
+    console.log('Data selecionada:', selectedDate, 'String:', day.dateString);
   };
 
-  // Selecionar horário com DateTimePicker nativo
   const handleTimeChange = (event: any, selectedTime?: Date) => {
     setShowTimePicker(false);
     if (selectedTime) {
@@ -100,54 +82,78 @@ const AddHabitScreen = () => {
     }
   };
 
-  // Salvar hábito
-  const handleSaveHabit = () => {
+  // No AddHabitScreen, na função handleSaveHabit, adicione:
+  const handleSaveHabit = async () => {
     if (!habitName.trim()) {
       Alert.alert('Erro', 'Por favor, digite um nome para o hábito.');
       return;
     }
 
+    // DEBUG: Verificar dias selecionados
+    console.log('Dias selecionados:', selectedDays);
+    console.log('Categoria selecionada:', selectedCategory.name);
+
     if (selectedDays.length === 0) {
-      Alert.alert('Erro', 'Selecione pelo menos um dia da semana.');
-      return;
+      Alert.alert('Atenção', 'Nenhum dia selecionado. O hábito será mostrado todos os dias.');
+      // Continua mesmo sem dias selecionados
     }
 
-    const newHabit = {
-      id: Date.now().toString(),
-      name: habitName,
-      category: selectedCategory,
-      days: selectedDays,
-      reminder,
-      reminderTime: reminder ? reminderTime : undefined,
-      startDate,
-      createdAt: new Date(),
-    };
+    try {
+      setLoading(true);
 
-    console.log('Novo hábito:', newHabit);
-    Alert.alert('Sucesso!', 'Hábito criado com sucesso!');
-    navigation.goBack();
+      const newHabit = {
+        name: habitName.trim(),
+        category: selectedCategory.name,
+        color: selectedCategory.color,
+        time: reminder ? reminderTime : undefined,
+        completed: false,
+        streak: 0,
+        days: selectedDays, // ← Isso está sendo salvo?
+        reminder: reminder,
+        reminderTime: reminder ? reminderTime : undefined,
+        startDate: startDate,
+      };
+
+      console.log('Dados do hábito a ser salvo:', newHabit);
+
+      await habitService.addHabit(newHabit);
+
+      Alert.alert('Sucesso!', 'Hábito criado com sucesso!', [
+        {
+          text: 'OK',
+          onPress: () => navigation.goBack()
+        }
+      ]);
+
+    } catch (error) {
+      console.error('Erro ao criar hábito:', error);
+      Alert.alert('Erro', 'Não foi possível criar o hábito. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const markedDates = {
-    [formatDateForCalendar(startDate)]: {
+    [startDate.toISOString().split('T')[0]]: {
       selected: true,
       selectedColor: colors.primary,
       selectedTextColor: colors.background,
     },
   };
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor={colors.primary} barStyle="light-content" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}>Cancelar</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Novo Hábito</Text>
-        <TouchableOpacity onPress={handleSaveHabit}>
-          <Text style={styles.saveButton}>Salvar</Text>
+        <TouchableOpacity onPress={handleSaveHabit} disabled={loading}>
+          <Text style={[styles.saveButton, loading && { opacity: 0.5 }]}>
+            {loading ? 'Salvando...' : 'Salvar'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -167,7 +173,7 @@ const AddHabitScreen = () => {
         {/* Categoria */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Categoria</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.categorySelector}
             onPress={() => setShowCategoryModal(true)}
           >
@@ -206,7 +212,7 @@ const AddHabitScreen = () => {
         {/* Data de Início */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Data de Início</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.dateSelector}
             onPress={() => setShowCalendarModal(true)}
           >
@@ -231,9 +237,9 @@ const AddHabitScreen = () => {
               thumbColor={colors.background}
             />
           </View>
-          
+
           {reminder && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.timeSelector}
               onPress={() => setShowTimePicker(true)}
             >
@@ -269,7 +275,7 @@ const AddHabitScreen = () => {
                 </TouchableOpacity>
               )}
             />
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.modalCloseButton}
               onPress={() => setShowCategoryModal(false)}
             >
@@ -291,7 +297,7 @@ const AddHabitScreen = () => {
             <Calendar
               onDayPress={handleDateSelect}
               markedDates={markedDates}
-              minDate={formatDateForCalendar(new Date())}
+              minDate={new Date().toISOString().split('T')[0]}
               theme={{
                 backgroundColor: colors.background,
                 calendarBackground: colors.background,
@@ -308,7 +314,7 @@ const AddHabitScreen = () => {
                 textDayHeaderFontWeight: '500',
               }}
             />
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.modalCloseButton}
               onPress={() => setShowCalendarModal(false)}
             >
@@ -318,7 +324,7 @@ const AddHabitScreen = () => {
         </View>
       </Modal>
 
-      {/* DateTimePicker Nativo para Horário */}
+      {/* DateTimePicker*/}
       {showTimePicker && (
         <DateTimePicker
           value={new Date(`1970-01-01T${reminderTime}:00`)}
