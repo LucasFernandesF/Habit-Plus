@@ -9,6 +9,7 @@ import {
   StatusBar,
   Alert,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { colors } from '../theme/colors';
 import { logout } from '../services/auth';
@@ -27,6 +28,8 @@ const HomeScreen = ({ navigation }: any) => {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [selectedDate, setSelectedDate] = useState<Date>(dateUtils.getToday());
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
 
   useEffect(() => {
     loadUserData();
@@ -70,7 +73,7 @@ const HomeScreen = ({ navigation }: any) => {
   };
 
   const updateDisplayHabits = () => {
-    const habitsForDate = allHabits.filter(habit => 
+    const habitsForDate = allHabits.filter(habit =>
       dateUtils.shouldShowHabitOnDate(habit, selectedDate)
     );
     setDisplayHabits(habitsForDate);
@@ -185,6 +188,56 @@ const HomeScreen = ({ navigation }: any) => {
     }
   };
 
+  const openHabitMenu = (habit: Habit) => {
+    setSelectedHabit(habit);
+    setMenuVisible(true);
+  };
+
+  const closeHabitMenu = () => {
+    setMenuVisible(false);
+    setSelectedHabit(null);
+  };
+
+  const handleEditHabit = () => {
+    if (selectedHabit) {
+      closeHabitMenu();
+      navigation.navigate('EditHabit', { habit: selectedHabit });
+    }
+  };
+
+  const handleDeleteHabit = () => {
+    if (selectedHabit) {
+      Alert.alert(
+        'Excluir Hábito',
+        `Tem certeza que deseja excluir "${selectedHabit.name}"?`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Excluir',
+            style: 'destructive',
+            onPress: () => confirmDeleteHabit(selectedHabit.id)
+          }
+        ]
+      );
+      closeHabitMenu();
+    }
+  };
+
+  const confirmDeleteHabit = async (habitId: string) => {
+    try {
+      await habitService.deleteHabit(habitId);
+
+      // Atualizar a lista localmente
+      const updatedHabits = allHabits.filter(h => h.id !== habitId);
+      setAllHabits(updatedHabits);
+
+      Alert.alert('Sucesso', 'Hábito excluído com sucesso!');
+    } catch (error) {
+      console.error('Erro ao excluir hábito:', error);
+      Alert.alert('Erro', 'Não foi possível excluir o hábito');
+    }
+  };
+
   const calculateProgress = () => {
     const completed = displayHabits.filter(habit => habit.completed).length;
     const total = displayHabits.length;
@@ -227,14 +280,14 @@ const HomeScreen = ({ navigation }: any) => {
       >
         {/* Date Navigation */}
         <View style={styles.dateNavigation}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.dateNavButton}
             onPress={() => navigateDate(-1)}
           >
             <Text style={styles.dateNavText}>‹</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.dateDisplay}
             onPress={goToToday}
           >
@@ -245,8 +298,8 @@ const HomeScreen = ({ navigation }: any) => {
               {dateUtils.formatDateShort(selectedDate)}
             </Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.dateNavButton}
             onPress={() => navigateDate(1)}
           >
@@ -254,7 +307,7 @@ const HomeScreen = ({ navigation }: any) => {
           </TouchableOpacity>
         </View>
 
-        {/* Progress Card */}
+        {/* Progress Card - CONTEÚDO COMPLETO */}
         <View style={styles.progressCard}>
           <View style={styles.progressHeader}>
             <Text style={styles.progressTitle}>
@@ -277,7 +330,7 @@ const HomeScreen = ({ navigation }: any) => {
           </Text>
         </View>
 
-        {/* Categories */}
+        {/* Categories - CONTEÚDO COMPLETO */}
         <Text style={styles.sectionTitle}>Categorias</Text>
         <ScrollView
           horizontal
@@ -313,7 +366,7 @@ const HomeScreen = ({ navigation }: any) => {
           ))}
         </ScrollView>
 
-        {/* Habits Header */}
+        {/* Today's Habits */}
         <View style={styles.habitsHeader}>
           <View>
             <Text style={styles.sectionTitle}>
@@ -361,6 +414,7 @@ const HomeScreen = ({ navigation }: any) => {
                 !isToday && styles.habitCardViewOnly
               ]}
               onPress={() => toggleHabit(habit.id)}
+              onLongPress={() => openHabitMenu(habit)}
               disabled={!isToday}
             >
               <View style={styles.habitLeft}>
@@ -398,12 +452,20 @@ const HomeScreen = ({ navigation }: any) => {
                   {habit.completed && <Text style={styles.checkmark}>✓</Text>}
                   {!isToday && <Text style={styles.viewOnlyText}>👁️</Text>}
                 </View>
+
+                {/* Botão de menu */}
+                <TouchableOpacity
+                  style={styles.menuButton}
+                  onPress={() => openHabitMenu(habit)}
+                >
+                  <Text style={styles.menuButtonText}>⋯</Text>
+                </TouchableOpacity>
               </View>
             </TouchableOpacity>
           ))
         )}
 
-        {/* Quick Stats */}
+        {/* Quick Stats - CONTEÚDO COMPLETO */}
         <View style={styles.statsCard}>
           <Text style={styles.statsTitle}>Estatísticas Gerais</Text>
           <View style={styles.statsGrid}>
@@ -425,6 +487,38 @@ const HomeScreen = ({ navigation }: any) => {
         {/* Empty space */}
         <View style={styles.bottomSpace} />
       </ScrollView>
+
+      {/* Modal de Menu do Hábito */}
+      <Modal
+        visible={menuVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeHabitMenu}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={closeHabitMenu}
+        >
+          <View style={styles.menuContainer}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleEditHabit}
+            >
+              <Text style={styles.menuItemText}>✏️ Editar Hábito</Text>
+            </TouchableOpacity>
+
+            <View style={styles.menuDivider} />
+
+            <TouchableOpacity
+              style={[styles.menuItem, styles.menuItemDelete]}
+              onPress={handleDeleteHabit}
+            >
+              <Text style={styles.menuItemDeleteText}>🗑️ Excluir Hábito</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -786,6 +880,54 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.primaryLight,
     textAlign: 'center',
+  },
+  menuButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  menuButtonText: {
+    fontSize: 18,
+    color: colors.text,
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuContainer: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: 8,
+    minWidth: 200,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  menuItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  menuItemDelete: {
+    backgroundColor: '#FFF5F5',
+  },
+  menuItemText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  menuItemDeleteText: {
+    fontSize: 16,
+    color: '#E53E3E',
+    fontWeight: '600',
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: colors.secondaryLight,
+    marginVertical: 4,
   },
 });
 
