@@ -8,97 +8,145 @@ import {
   SafeAreaView,
   StatusBar,
   Alert,
+  RefreshControl,
+  Modal,
 } from 'react-native';
 import { colors } from '../theme/colors';
 import { logout } from '../services/auth';
 import { auth, db } from '../services/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { User } from 'firebase/auth';
-
-type Habit = {
-  id: string;
-  name: string;
-  category: string;
-  color: string;
-  time?: string;
-  completed: boolean;
-  streak: number;
-};
-
-type Category = {
-  id: string;
-  name: string;
-  icon: string;
-  count: number;
-};
+import { habitService } from '../services/habitService';
+import { Habit, Category } from '../types/habit';
+import { dateUtils } from '../utils/dateUtils';
 
 const HomeScreen = ({ navigation }: any) => {
-  const [habits, setHabits] = useState<Habit[]>([
-    {
-      id: '1',
-      name: 'Beber água',
-      category: 'Saúde',
-      color: '#732571',
-      time: '08:00',
-      completed: true,
-      streak: 5,
-    },
-    {
-      id: '2',
-      name: 'Estudar React Native',
-      category: 'Estudo',
-      color: '#964e94',
-      time: '14:00',
-      completed: false,
-      streak: 12,
-    },
-    {
-      id: '3',
-      name: 'Exercícios',
-      category: 'Fitness',
-      color: '#b977b8',
-      time: '18:00',
-      completed: false,
-      streak: 3,
-    },
-    {
-      id: '4',
-      name: 'Meditação',
-      category: 'Mental',
-      color: '#dca0db',
-      completed: true,
-      streak: 7,
-    },
-  ]);
-
-  const [categories] = useState<Category[]>([
-    { id: '1', name: 'Todos', icon: '📋', count: 12 },
-    { id: '2', name: 'Saúde', icon: '💊', count: 4 },
-    { id: '3', name: 'Estudo', icon: '📚', count: 3 },
-    { id: '4', name: 'Fitness', icon: '💪', count: 2 },
-    { id: '5', name: 'Mental', icon: '🧠', count: 3 },
-  ]);
-
+  const [allHabits, setAllHabits] = useState<Habit[]>([]);
+  const [displayHabits, setDisplayHabits] = useState<Habit[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [userName, setUserName] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
+  const [selectedDate, setSelectedDate] = useState<Date>(dateUtils.getToday());
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
 
   useEffect(() => {
-    const fetchUserName = async () => {
-      try {
-        const user = auth.currentUser;
-        if (user) {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            setUserName(userData.name || '');
-          }
+    loadUserData();
+    loadHabits();
+  }, []);
+
+  useEffect(() => {
+    if (allHabits.length > 0) {
+      updateDisplayHabits();
+    }
+  }, [allHabits, selectedDate]);
+
+  const loadUserData = async () => {
+    try {
+      const user = auth.currentUser;
+      if (user) {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setUserName(userData.name || '');
         }
-      } catch (error) {
-        console.error('Erro ao buscar nome do usuário:', error);
       }
+    } catch (error) {
+      console.error('Erro ao buscar nome do usuário:', error);
+    }
+  };
+
+  const loadHabits = async () => {
+    try {
+      setLoading(true);
+      const userHabits = await habitService.getHabits();
+      setAllHabits(userHabits);
+      updateCategories(userHabits);
+    } catch (error) {
+      console.error('Erro ao carregar hábitos:', error);
+      Alert.alert('Erro', 'Não foi possível carregar os hábitos');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const updateDisplayHabits = () => {
+    const habitsForDate = allHabits.filter(habit =>
+      dateUtils.shouldShowHabitOnDate(habit, selectedDate)
+    );
+    setDisplayHabits(habitsForDate);
+  };
+
+  const updateCategories = (habitsList: Habit[]) => {
+    const categoryMap: { [key: string]: Category } = {
+      'Todos': { id: '1', name: 'Todos', icon: '📋', count: habitsList.length, color: colors.primary },
     };
 
-    fetchUserName();
-  }, []);
+    const categoryIcons: { [key: string]: string } = {
+      'Saúde': '💊',
+      'Estudo': '📚',
+      'Fitness': '💪',
+      'Mental': '🧠',
+      'Trabalho': '💼',
+      'Finanças': '💰',
+      'Casa': '🏠',
+      'Social': '👥',
+      'Hobbie': '🎨',
+      'Tecnologia': '💻',
+    };
+
+    const categoryColors: { [key: string]: string } = {
+      'Saúde': '#732571',
+      'Estudo': '#964e94',
+      'Fitness': '#b977b8',
+      'Mental': '#dca0db',
+      'Trabalho': '#ffc9ff',
+      'Finanças': '#4361ee',
+      'Casa': '#3a0ca3',
+      'Social': '#7209b7',
+      'Hobbie': '#f72585',
+      'Tecnologia': '#2a9d8f',
+    };
+
+    habitsList.forEach(habit => {
+      if (!categoryMap[habit.category]) {
+        categoryMap[habit.category] = {
+          id: `cat-${habit.category}`,
+          name: habit.category,
+          icon: categoryIcons[habit.category] || '📌',
+          count: 0,
+          color: categoryColors[habit.category] || '#732571'
+        };
+      }
+      categoryMap[habit.category].count++;
+    });
+
+    const categoriesArray = Object.values(categoryMap).sort((a, b) => b.count - a.count);
+    setCategories(categoriesArray);
+  };
+
+  const getFilteredHabits = () => {
+    if (selectedCategory === 'Todos') {
+      return displayHabits;
+    }
+    return displayHabits.filter(habit => habit.category === selectedCategory);
+  };
+
+  const navigateDate = (days: number) => {
+    const newDate = dateUtils.addDays(selectedDate, days);
+    setSelectedDate(newDate);
+  };
+
+  const goToToday = () => {
+    setSelectedDate(dateUtils.getToday());
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadHabits();
+  };
 
   const handleLogout = async () => {
     try {
@@ -108,23 +156,101 @@ const HomeScreen = ({ navigation }: any) => {
     }
   };
 
-  const toggleHabit = (habitId: string) => {
-    setHabits(prevHabits =>
-      prevHabits.map(habit =>
-        habit.id === habitId
-          ? { ...habit, completed: !habit.completed }
-          : habit
-      )
-    );
+  const toggleHabit = async (habitId: string) => {
+    try {
+      const habit = displayHabits.find(h => h.id === habitId);
+      if (!habit) return;
+
+      // Só permite marcar/desmarcar se for hoje
+      if (!dateUtils.isToday(selectedDate)) {
+        Alert.alert('Aviso', 'Só é possível marcar hábitos para o dia atual.');
+        return;
+      }
+
+      const updatedCompleted = !habit.completed;
+      const updatedStreak = updatedCompleted ? habit.streak + 1 : Math.max(0, habit.streak - 1);
+
+      await habitService.updateHabit(habitId, {
+        completed: updatedCompleted,
+        streak: updatedStreak,
+      });
+
+      // Atualizar localmente
+      const updatedAllHabits = allHabits.map(h =>
+        h.id === habitId
+          ? { ...h, completed: updatedCompleted, streak: updatedStreak }
+          : h
+      );
+      setAllHabits(updatedAllHabits);
+    } catch (error) {
+      console.error('Erro ao atualizar hábito:', error);
+      Alert.alert('Erro', 'Não foi possível atualizar o hábito');
+    }
+  };
+
+  const openHabitMenu = (habit: Habit) => {
+    setSelectedHabit(habit);
+    setMenuVisible(true);
+  };
+
+  const closeHabitMenu = () => {
+    setMenuVisible(false);
+    setSelectedHabit(null);
+  };
+
+  const handleEditHabit = () => {
+    if (selectedHabit) {
+      closeHabitMenu();
+      navigation.navigate('EditHabit', { habit: selectedHabit });
+    }
+  };
+
+  const handleDeleteHabit = () => {
+    if (selectedHabit) {
+      Alert.alert(
+        'Excluir Hábito',
+        `Tem certeza que deseja excluir "${selectedHabit.name}"?`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Excluir',
+            style: 'destructive',
+            onPress: () => confirmDeleteHabit(selectedHabit.id)
+          }
+        ]
+      );
+      closeHabitMenu();
+    }
+  };
+
+  const confirmDeleteHabit = async (habitId: string) => {
+    try {
+      await habitService.deleteHabit(habitId);
+
+      // Atualizar a lista localmente
+      const updatedHabits = allHabits.filter(h => h.id !== habitId);
+      setAllHabits(updatedHabits);
+
+      Alert.alert('Sucesso', 'Hábito excluído com sucesso!');
+    } catch (error) {
+      console.error('Erro ao excluir hábito:', error);
+      Alert.alert('Erro', 'Não foi possível excluir o hábito');
+    }
   };
 
   const calculateProgress = () => {
-    const completed = habits.filter(habit => habit.completed).length;
-    const total = habits.length;
+    const completed = displayHabits.filter(habit => habit.completed).length;
+    const total = displayHabits.length;
     return total > 0 ? (completed / total) * 100 : 0;
   };
 
+  const getLongestStreak = () => {
+    return allHabits.reduce((max, habit) => Math.max(max, habit.streak), 0);
+  };
+
   const progress = calculateProgress();
+  const filteredHabits = getFilteredHabits();
+  const isToday = dateUtils.isToday(selectedDate);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -134,18 +260,59 @@ const HomeScreen = ({ navigation }: any) => {
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Bom dia{userName ? `, ${userName}` : ''}! 👋 </Text>
-          <Text style={styles.subtitle}>Seu progresso hoje</Text>
+          <Text style={styles.subtitle}>Seu progresso {dateUtils.isToday(selectedDate) ? 'hoje' : 'do dia'}</Text>
         </View>
         <TouchableOpacity style={styles.profileButton} onPress={handleLogout}>
           <Text style={styles.profileText}>Sair</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
-        {/* Progress Card */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+          />
+        }
+      >
+        {/* Date Navigation */}
+        <View style={styles.dateNavigation}>
+          <TouchableOpacity
+            style={styles.dateNavButton}
+            onPress={() => navigateDate(-1)}
+          >
+            <Text style={styles.dateNavText}>‹</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.dateDisplay}
+            onPress={goToToday}
+          >
+            <Text style={styles.dateText}>
+              {dateUtils.formatDate(selectedDate)}
+            </Text>
+            <Text style={styles.dateSubtext}>
+              {dateUtils.formatDateShort(selectedDate)}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.dateNavButton}
+            onPress={() => navigateDate(1)}
+          >
+            <Text style={styles.dateNavText}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Progress Card - CONTEÚDO COMPLETO */}
         <View style={styles.progressCard}>
           <View style={styles.progressHeader}>
-            <Text style={styles.progressTitle}>Progresso Diário</Text>
+            <Text style={styles.progressTitle}>
+              Progresso {dateUtils.isToday(selectedDate) ? 'Diário' : 'do Dia'}
+            </Text>
             <Text style={styles.progressPercentage}>{Math.round(progress)}%</Text>
           </View>
 
@@ -159,11 +326,11 @@ const HomeScreen = ({ navigation }: any) => {
           </View>
 
           <Text style={styles.progressText}>
-            {habits.filter(h => h.completed).length} de {habits.length} hábitos concluídos
+            {displayHabits.filter(h => h.completed).length} de {displayHabits.length} hábitos
           </Text>
         </View>
 
-        {/* Categories */}
+        {/* Categories - CONTEÚDO COMPLETO */}
         <Text style={styles.sectionTitle}>Categorias</Text>
         <ScrollView
           horizontal
@@ -171,17 +338,45 @@ const HomeScreen = ({ navigation }: any) => {
           style={styles.categoriesScroll}
         >
           {categories.map(category => (
-            <TouchableOpacity key={category.id} style={styles.categoryCard}>
+            <TouchableOpacity
+              key={category.id}
+              style={[
+                styles.categoryCard,
+                selectedCategory === category.name && {
+                  backgroundColor: category.color,
+                  borderColor: category.color
+                }
+              ]}
+              onPress={() => setSelectedCategory(category.name)}
+            >
               <Text style={styles.categoryIcon}>{category.icon}</Text>
-              <Text style={styles.categoryName}>{category.name}</Text>
-              <Text style={styles.categoryCount}>{category.count}</Text>
+              <Text style={[
+                styles.categoryName,
+                selectedCategory === category.name && styles.categoryNameSelected
+              ]}>
+                {category.name}
+              </Text>
+              <Text style={[
+                styles.categoryCount,
+                selectedCategory === category.name && styles.categoryCountSelected
+              ]}>
+                {category.count}
+              </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
         {/* Today's Habits */}
         <View style={styles.habitsHeader}>
-          <Text style={styles.sectionTitle}>Hábitos de Hoje</Text>
+          <View>
+            <Text style={styles.sectionTitle}>
+              Hábitos {dateUtils.isToday(selectedDate) ? 'de Hoje' : 'do Dia'}
+            </Text>
+            <Text style={styles.habitsSubtitle}>
+              {selectedCategory !== 'Todos' ? `Filtrado: ${selectedCategory}` : 'Todos os hábitos'}
+              {!isToday && ' • Apenas visualização'}
+            </Text>
+          </View>
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => navigation.navigate('AddHabit')}
@@ -190,67 +385,101 @@ const HomeScreen = ({ navigation }: any) => {
           </TouchableOpacity>
         </View>
 
-        {habits.map(habit => (
-          <TouchableOpacity
-            key={habit.id}
-            style={[
-              styles.habitCard,
-              habit.completed && styles.habitCardCompleted
-            ]}
-            onPress={() => toggleHabit(habit.id)}
-          >
-            <View style={styles.habitLeft}>
-              <View
-                style={[
-                  styles.habitColor,
-                  { backgroundColor: habit.color }
-                ]}
-              />
-              <View style={styles.habitInfo}>
-                <Text style={[
-                  styles.habitName,
-                  habit.completed && styles.habitNameCompleted
-                ]}>
-                  {habit.name}
-                </Text>
-                <View style={styles.habitMeta}>
-                  <Text style={styles.habitCategory}>{habit.category}</Text>
-                  {habit.time && (
-                    <Text style={styles.habitTime}>⏰ {habit.time}</Text>
-                  )}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Carregando hábitos...</Text>
+          </View>
+        ) : filteredHabits.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>
+              {selectedCategory !== 'Todos'
+                ? `Nenhum hábito de ${selectedCategory} para este dia`
+                : 'Nenhum hábito para este dia'
+              }
+            </Text>
+            <Text style={styles.emptyStateSubtext}>
+              {selectedCategory !== 'Todos'
+                ? 'Tente mudar a categoria ou data'
+                : 'Toque em "+ Novo" para criar hábitos!'
+              }
+            </Text>
+          </View>
+        ) : (
+          filteredHabits.map(habit => (
+            <TouchableOpacity
+              key={habit.id}
+              style={[
+                styles.habitCard,
+                habit.completed && styles.habitCardCompleted,
+                !isToday && styles.habitCardViewOnly
+              ]}
+              onPress={() => toggleHabit(habit.id)}
+              onLongPress={() => openHabitMenu(habit)}
+              disabled={!isToday}
+            >
+              <View style={styles.habitLeft}>
+                <View
+                  style={[
+                    styles.habitColor,
+                    { backgroundColor: habit.color }
+                  ]}
+                />
+                <View style={styles.habitInfo}>
+                  <Text style={[
+                    styles.habitName,
+                    habit.completed && styles.habitNameCompleted
+                  ]}>
+                    {habit.name}
+                  </Text>
+                  <View style={styles.habitMeta}>
+                    <Text style={styles.habitCategory}>{habit.category}</Text>
+                    {habit.time && (
+                      <Text style={styles.habitTime}>⏰ {habit.time}</Text>
+                    )}
+                  </View>
                 </View>
               </View>
-            </View>
 
-            <View style={styles.habitRight}>
-              <View style={styles.streakContainer}>
-                <Text style={styles.streakText}>🔥 {habit.streak}</Text>
-              </View>
-              <View style={[
-                styles.checkbox,
-                habit.completed && styles.checkboxCompleted
-              ]}>
-                {habit.completed && <Text style={styles.checkmark}>✓</Text>}
-              </View>
-            </View>
-          </TouchableOpacity>
-        ))}
+              <View style={styles.habitRight}>
+                <View style={styles.streakContainer}>
+                  <Text style={styles.streakText}>🔥 {habit.streak}</Text>
+                </View>
+                <View style={[
+                  styles.checkbox,
+                  habit.completed && styles.checkboxCompleted,
+                  !isToday && styles.checkboxDisabled
+                ]}>
+                  {habit.completed && <Text style={styles.checkmark}>✓</Text>}
+                  {!isToday && <Text style={styles.viewOnlyText}>👁️</Text>}
+                </View>
 
-        {/* Quick Stats */}
+                {/* Botão de menu */}
+                <TouchableOpacity
+                  style={styles.menuButton}
+                  onPress={() => openHabitMenu(habit)}
+                >
+                  <Text style={styles.menuButtonText}>⋯</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          ))
+        )}
+
+        {/* Quick Stats - CONTEÚDO COMPLETO */}
         <View style={styles.statsCard}>
-          <Text style={styles.statsTitle}>Estatísticas Rápidas</Text>
+          <Text style={styles.statsTitle}>Estatísticas Gerais</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>7</Text>
-              <Text style={styles.statLabel}>Dias seguidos</Text>
+              <Text style={styles.statNumber}>{getLongestStreak()}</Text>
+              <Text style={styles.statLabel}>Maior sequência</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>85%</Text>
-              <Text style={styles.statLabel}>Taxa de sucesso</Text>
+              <Text style={styles.statNumber}>{allHabits.length}</Text>
+              <Text style={styles.statLabel}>Total hábitos</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>12</Text>
-              <Text style={styles.statLabel}>Hábitos totais</Text>
+              <Text style={styles.statNumber}>{displayHabits.length}</Text>
+              <Text style={styles.statLabel}>Dia selecionado</Text>
             </View>
           </View>
         </View>
@@ -258,6 +487,38 @@ const HomeScreen = ({ navigation }: any) => {
         {/* Empty space */}
         <View style={styles.bottomSpace} />
       </ScrollView>
+
+      {/* Modal de Menu do Hábito */}
+      <Modal
+        visible={menuVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeHabitMenu}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={closeHabitMenu}
+        >
+          <View style={styles.menuContainer}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleEditHabit}
+            >
+              <Text style={styles.menuItemText}>✏️ Editar Hábito</Text>
+            </TouchableOpacity>
+
+            <View style={styles.menuDivider} />
+
+            <TouchableOpacity
+              style={[styles.menuItem, styles.menuItemDelete]}
+              onPress={handleDeleteHabit}
+            >
+              <Text style={styles.menuItemDeleteText}>🗑️ Excluir Hábito</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -298,8 +559,46 @@ const styles = StyleSheet.create({
     color: colors.background,
     fontWeight: '600',
   },
+  dateNavigation: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    margin: 20,
+    marginBottom: 10,
+  },
+  dateNavButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dateNavText: {
+    color: colors.background,
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  dateDisplay: {
+    alignItems: 'center',
+    flex: 1,
+    paddingHorizontal: 10,
+  },
+  dateText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.primary,
+    textAlign: 'center',
+  },
+  dateSubtext: {
+    fontSize: 14,
+    color: colors.text,
+    textAlign: 'center',
+    marginTop: 2,
+  },
   progressCard: {
     margin: 20,
+    marginTop: 10,
     padding: 20,
     backgroundColor: colors.background,
     borderRadius: 16,
@@ -349,7 +648,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.primary,
     marginHorizontal: 20,
-    marginBottom: 15,
+    marginBottom: 5,
+  },
+  habitsSubtitle: {
+    fontSize: 14,
+    color: colors.text,
+    marginHorizontal: 20,
+    marginBottom: 10,
   },
   categoriesScroll: {
     marginBottom: 20,
@@ -380,14 +685,20 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginBottom: 4,
   },
+  categoryNameSelected: {
+    color: colors.background,
+  },
   categoryCount: {
     fontSize: 11,
     color: colors.text,
   },
+  categoryCountSelected: {
+    color: colors.background,
+  },
   habitsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginHorizontal: 20,
     marginBottom: 15,
   },
@@ -422,6 +733,9 @@ const styles = StyleSheet.create({
   habitCardCompleted: {
     backgroundColor: colors.accent,
     borderColor: colors.secondary,
+  },
+  habitCardViewOnly: {
+    opacity: 0.7,
   },
   habitLeft: {
     flexDirection: 'row',
@@ -489,10 +803,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
+  checkboxDisabled: {
+    borderColor: colors.secondaryLight,
+    backgroundColor: 'transparent',
+  },
   checkmark: {
     color: colors.background,
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  viewOnlyText: {
+    fontSize: 12,
   },
   statsCard: {
     margin: 20,
@@ -534,6 +855,79 @@ const styles = StyleSheet.create({
   },
   bottomSpace: {
     height: 30,
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  emptyState: {
+    alignItems: 'center',
+    padding: 40,
+    marginHorizontal: 20,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    color: colors.text,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: colors.primaryLight,
+    textAlign: 'center',
+  },
+  menuButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  menuButtonText: {
+    fontSize: 18,
+    color: colors.text,
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuContainer: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: 8,
+    minWidth: 200,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  menuItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  menuItemDelete: {
+    backgroundColor: '#FFF5F5',
+  },
+  menuItemText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  menuItemDeleteText: {
+    fontSize: 16,
+    color: '#E53E3E',
+    fontWeight: '600',
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: colors.secondaryLight,
+    marginVertical: 4,
   },
 });
 

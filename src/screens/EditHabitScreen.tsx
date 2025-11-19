@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// src/screens/EditHabitScreen.tsx
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,10 +15,12 @@ import {
   FlatList,
 } from 'react-native';
 import { colors } from '../theme/colors';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { Calendar } from 'react-native-calendars';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { habitService } from '../services/habitService';
+import { Habit } from '../types/habit';
+import { dateUtils } from '../utils/dateUtils';
 
 const categories = [
   { id: 'health', name: 'Saúde', color: '#732571', icon: '💊' },
@@ -43,35 +46,37 @@ const weekDays = [
   { id: 'sat', name: 'Sáb', fullName: 'Sábado' },
 ];
 
-const AddHabitScreen = () => {
+const EditHabitScreen = () => {
   const navigation = useNavigation();
-
-  const [habitName, setHabitName] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(categories[0]);
-  const [selectedDays, setSelectedDays] = useState<string[]>([]);
-  const [reminder, setReminder] = useState(false);
-  const [reminderTime, setReminderTime] = useState('08:00');
-  const [startDate, setStartDate] = useState(new Date());
+  const route = useRoute();
+  const { habit } = route.params as { habit: Habit };
+  
+  const [habitName, setHabitName] = useState(habit.name);
+  const [selectedCategory, setSelectedCategory] = useState(
+    categories.find(cat => cat.name === habit.category) || categories[0]
+  );
+  const [selectedDays, setSelectedDays] = useState<string[]>(habit.days || []);
+  const [reminder, setReminder] = useState(habit.reminder || false);
+  const [reminderTime, setReminderTime] = useState(habit.reminderTime || '08:00');
+  const [startDate, setStartDate] = useState(new Date(habit.startDate));
   const [loading, setLoading] = useState(false);
-
+  
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
   const toggleDay = (dayId: string) => {
-    setSelectedDays(prev =>
-      prev.includes(dayId)
+    setSelectedDays(prev => 
+      prev.includes(dayId) 
         ? prev.filter(d => d !== dayId)
         : [...prev, dayId]
     );
   };
 
   const handleDateSelect = (day: any) => {
-    // Criar data no fuso local (sem problemas de UTC)
     const selectedDate = new Date(day.dateString + 'T00:00:00');
     setStartDate(selectedDate);
     setShowCalendarModal(false);
-    console.log('Data selecionada:', selectedDate, 'String:', day.dateString);
   };
 
   const handleTimeChange = (event: any, selectedTime?: Date) => {
@@ -82,52 +87,40 @@ const AddHabitScreen = () => {
     }
   };
 
-  // No AddHabitScreen, na função handleSaveHabit, adicione:
-  const handleSaveHabit = async () => {
+  const handleUpdateHabit = async () => {
     if (!habitName.trim()) {
       Alert.alert('Erro', 'Por favor, digite um nome para o hábito.');
       return;
     }
 
-    // DEBUG: Verificar dias selecionados
-    console.log('Dias selecionados:', selectedDays);
-    console.log('Categoria selecionada:', selectedCategory.name);
-
-    if (selectedDays.length === 0) {
-      Alert.alert('Atenção', 'Nenhum dia selecionado. O hábito será mostrado todos os dias.');
-      // Continua mesmo sem dias selecionados
-    }
-
     try {
       setLoading(true);
 
-      const newHabit = {
+      const updatedHabit = {
         name: habitName.trim(),
         category: selectedCategory.name,
         color: selectedCategory.color,
         time: reminder ? reminderTime : undefined,
-        completed: false,
-        streak: 0,
-        days: selectedDays, // ← Isso está sendo salvo?
+        completed: habit.completed,
+        streak: habit.streak,
+        days: selectedDays,
         reminder: reminder,
         reminderTime: reminder ? reminderTime : undefined,
         startDate: startDate,
       };
 
-      console.log('Dados do hábito a ser salvo:', newHabit);
-
-      await habitService.addHabit(newHabit);
-
-      Alert.alert('Sucesso!', 'Hábito criado com sucesso!', [
-        {
-          text: 'OK',
-          onPress: () => navigation.goBack()
+      await habitService.updateHabit(habit.id, updatedHabit);
+      
+      Alert.alert('Sucesso!', 'Hábito atualizado com sucesso!', [
+        { 
+          text: 'OK', 
+          onPress: () => navigation.goBack() 
         }
       ]);
-
+      
     } catch (error) {
-      console.error('Erro ao criar hábito:', error);
-      Alert.alert('Erro', 'Não foi possível criar o hábito. Tente novamente.');
+      console.error('Erro ao atualizar hábito:', error);
+      Alert.alert('Erro', 'Não foi possível atualizar o hábito. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -140,17 +133,18 @@ const AddHabitScreen = () => {
       selectedTextColor: colors.background,
     },
   };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor={colors.primary} barStyle="light-content" />
-
+      
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}>Cancelar</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Novo Hábito</Text>
-        <TouchableOpacity onPress={handleSaveHabit} disabled={loading}>
+        <Text style={styles.headerTitle}>Editar Hábito</Text>
+        <TouchableOpacity onPress={handleUpdateHabit} disabled={loading}>
           <Text style={[styles.saveButton, loading && { opacity: 0.5 }]}>
             {loading ? 'Salvando...' : 'Salvar'}
           </Text>
@@ -173,7 +167,7 @@ const AddHabitScreen = () => {
         {/* Categoria */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Categoria</Text>
-          <TouchableOpacity
+          <TouchableOpacity 
             style={styles.categorySelector}
             onPress={() => setShowCategoryModal(true)}
           >
@@ -212,7 +206,7 @@ const AddHabitScreen = () => {
         {/* Data de Início */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Data de Início</Text>
-          <TouchableOpacity
+          <TouchableOpacity 
             style={styles.dateSelector}
             onPress={() => setShowCalendarModal(true)}
           >
@@ -237,9 +231,9 @@ const AddHabitScreen = () => {
               thumbColor={colors.background}
             />
           </View>
-
+          
           {reminder && (
-            <TouchableOpacity
+            <TouchableOpacity 
               style={styles.timeSelector}
               onPress={() => setShowTimePicker(true)}
             >
@@ -275,7 +269,7 @@ const AddHabitScreen = () => {
                 </TouchableOpacity>
               )}
             />
-            <TouchableOpacity
+            <TouchableOpacity 
               style={styles.modalCloseButton}
               onPress={() => setShowCategoryModal(false)}
             >
@@ -314,7 +308,7 @@ const AddHabitScreen = () => {
                 textDayHeaderFontWeight: '500',
               }}
             />
-            <TouchableOpacity
+            <TouchableOpacity 
               style={styles.modalCloseButton}
               onPress={() => setShowCalendarModal(false)}
             >
@@ -338,6 +332,7 @@ const AddHabitScreen = () => {
   );
 };
 
+// Copie os mesmos estilos do AddHabitScreen
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -532,4 +527,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AddHabitScreen;
+export default EditHabitScreen;
