@@ -2,7 +2,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
-  sendEmailVerification, // ← ADICIONE ESTA IMPORT
+  sendEmailVerification, 
   signOut,
   onAuthStateChanged,
   User
@@ -13,19 +13,17 @@ import { auth, db } from './firebase';
 export const signUp = async (email: string, password: string, additionalData?: any) => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user; // ← CORREÇÃO AQUI
+    const user = userCredential.user; 
 
     if (user) {
-      // Salva dados do usuário no Firestore
       await setDoc(doc(db, 'users', user.uid), {
         email: email,
         name: additionalData?.name || '',
         createdAt: new Date(),
-        emailVerified: false, // ← Marca como não verificado
+        emailVerified: false, 
         ...additionalData
       });
 
-      // Envia email de verificação ← CORREÇÃO AQUI
       await sendEmailVerification(user);
     }
 
@@ -65,7 +63,6 @@ export const observeAuth = (callback: (user: User | null) => void) => {
   return onAuthStateChanged(auth, callback);
 };
 
-// Função para reenviar verificação de email
 export const resendEmailVerification = async () => {
   try {
     if (auth.currentUser) {

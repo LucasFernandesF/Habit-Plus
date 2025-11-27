@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   ScrollView
 } from 'react-native';
-import { resendEmailVerification, logout } from '../services/auth'; 
+import { logout } from '../services/auth'; 
 import { colors } from '../theme/colors';
 import { onAuthStateChanged, sendEmailVerification } from 'firebase/auth';
 import { auth } from '../services/firebase';
@@ -17,13 +17,22 @@ const EmailVerificationScreen = ({ navigation }: any) => {
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [user, setUser] = useState(auth.currentUser); 
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      console.log('EmailVerification - Auth state changed');
       setUser(currentUser);
+      
+      if (currentUser) {
+        // Recarrega para obter o status mais recente
+        await currentUser.reload();
+        const updatedUser = auth.currentUser;
+        console.log('EmailVerification - After reload - Verified:', updatedUser?.emailVerified);
+      }
     });
     return unsubscribe;
-  }, []);
+  }, [navigation]);
 
   useEffect(() => {
     if (cooldown > 0) {
@@ -46,6 +55,7 @@ const EmailVerificationScreen = ({ navigation }: any) => {
         );
       }
     } catch (error: any) {
+      console.error('Erro ao reenviar email:', error);
       Alert.alert('Erro', 'Não foi possível enviar o email de verificação. Tente novamente.');
     } finally {
       setLoading(false);
@@ -53,27 +63,51 @@ const EmailVerificationScreen = ({ navigation }: any) => {
   };
 
   const handleCheckVerification = async () => {
-    setLoading(true);
+    setChecking(true);
     try {
-      await user?.reload();
-      const updatedUser = auth.currentUser;
-      
-      if (updatedUser?.emailVerified) {
-        Alert.alert('Sucesso!', 'Email verificado com sucesso!');
-
-      } else {
-        Alert.alert('Atenção', 'Email ainda não verificado. Verifique sua caixa de entrada.');
+      if (user) {
+        // Força o reload do usuário
+        await user.reload();
+        const updatedUser = auth.currentUser;
+        
+        console.log('Email verification status after reload:', updatedUser?.emailVerified);
+        
+        if (updatedUser?.emailVerified) {
+          console.log('Email verified successfully, logging out and going to login');
+          Alert.alert(
+            'Sucesso!', 
+            'Email verificado com sucesso! Faça login novamente.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  // Faz logout e vai para login
+                  logout();
+                  navigation.navigate('Login');
+                }
+              }
+            ]
+          );
+        } else {
+          Alert.alert(
+            'Atenção', 
+            'Email ainda não verificado. Verifique sua caixa de entrada e pasta de spam.',
+            [{ text: 'OK' }]
+          );
+        }
       }
     } catch (error) {
+      console.error('Erro ao verificar email:', error);
       Alert.alert('Erro', 'Não foi possível verificar o status do email.');
     } finally {
-      setLoading(false);
+      setChecking(false);
     }
   };
 
   const handleLogout = async () => {
     try {
       await logout();
+      navigation.navigate('Login');
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
     }
@@ -84,7 +118,7 @@ const EmailVerificationScreen = ({ navigation }: any) => {
       <View style={styles.container}>
         <Text style={styles.title}>Erro</Text>
         <Text style={styles.message}>Nenhum usuário encontrado.</Text>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <TouchableOpacity style={styles.logoutButton} onPress={() => navigation.navigate('Login')}>
           <Text style={styles.logoutButtonText}>Voltar ao Login</Text>
         </TouchableOpacity>
       </View>
@@ -110,7 +144,8 @@ const EmailVerificationScreen = ({ navigation }: any) => {
           • Verifique sua caixa de entrada{'\n'}
           • Clique no link de verificação{'\n'}
           • Volte ao app e toque em "Já verifiquei"{'\n'}
-          • Verifique também a pasta de spam
+          • Verifique também a pasta de spam{'\n'}
+          • Após verificação, faça login novamente
         </Text>
 
         <TouchableOpacity 
@@ -131,18 +166,25 @@ const EmailVerificationScreen = ({ navigation }: any) => {
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={styles.verifyButton}
+          style={[
+            styles.verifyButton,
+            checking && styles.buttonDisabled
+          ]}
           onPress={handleCheckVerification}
-          disabled={loading}
+          disabled={checking}
         >
-          <Text style={styles.verifyButtonText}>Já verifiquei meu email</Text>
+          {checking ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.verifyButtonText}>Já verifiquei meu email</Text>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity 
           style={styles.logoutButton}
           onPress={handleLogout}
         >
-          <Text style={styles.logoutButtonText}>Sair</Text>
+          <Text style={styles.logoutButtonText}>Sair e Voltar ao Login</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

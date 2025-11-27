@@ -1,3 +1,4 @@
+// AppNavigator.tsx
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -31,9 +32,18 @@ const AppNavigator = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       console.log('AppNavigator - Auth State:', currentUser?.email, 'Verified:', currentUser?.emailVerified);
-      setUser(currentUser);
+      
+      if (currentUser) {
+        await currentUser.reload();
+        const updatedUser = auth.currentUser;
+        console.log('AppNavigator - After reload - Verified:', updatedUser?.emailVerified);
+        setUser(updatedUser);
+      } else {
+        setUser(currentUser);
+      }
+      
       setLoading(false);
     });
 
@@ -58,18 +68,20 @@ const AppNavigator = () => {
         }}
       >
         {user ? (
+          // Usuário logado
           user.emailVerified ? (
+            // Email verificado - vai para Home
             <>
-              <Stack.Screen name="Home">
-                {(props) => <HomeScreen {...props} />}
-              </Stack.Screen>
+              <Stack.Screen name="Home" component={HomeScreen} />
               <Stack.Screen name="AddHabit" component={AddHabitScreen} />
               <Stack.Screen name="EditHabit" component={EditHabitScreen} />
             </>
           ) : (
+            // Email não verificado - fica na tela de verificação
             <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
           )
         ) : (
+          // Usuário não logado
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />

@@ -20,7 +20,6 @@ import { Calendar } from 'react-native-calendars';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { habitService } from '../services/habitService';
 import { Habit } from '../types/habit';
-import { dateUtils } from '../utils/dateUtils';
 
 const categories = [
   { id: 'health', name: 'Saúde', color: '#732571', icon: '💊' },
