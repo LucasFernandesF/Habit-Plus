@@ -18,8 +18,10 @@ import { doc, getDoc } from 'firebase/firestore';
 import { habitService } from '../services/habitService';
 import { Habit, Category } from '../types/habit';
 import { dateUtils } from '../utils/dateUtils';
+import { useIsFocused } from '@react-navigation/native';
 
 const HomeScreen = ({ navigation }: any) => {
+   const isFocused = useIsFocused();
   const [allHabits, setAllHabits] = useState<Habit[]>([]);
   const [displayHabits, setDisplayHabits] = useState<Habit[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -30,6 +32,13 @@ const HomeScreen = ({ navigation }: any) => {
   const [selectedDate, setSelectedDate] = useState<Date>(dateUtils.getToday());
   const [menuVisible, setMenuVisible] = useState(false);
   const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
+
+  useEffect(() => {
+    if (isFocused) {
+      console.log('HomeScreen recebeu foco, recarregando hábitos...');
+      loadHabits();
+    }
+  }, [isFocused]);
 
   useEffect(() => {
     loadUserData();
@@ -259,7 +268,7 @@ const HomeScreen = ({ navigation }: any) => {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Bom dia{userName ? `, ${userName}` : ''}! 👋 </Text>
+          <Text style={styles.greeting}>Oi, {userName ? `, ${userName}` : ''} tudo bem? 👋 </Text>
           <Text style={styles.subtitle}>Seu progresso {dateUtils.isToday(selectedDate) ? 'hoje' : 'do dia'}</Text>
         </View>
         <TouchableOpacity style={styles.profileButton} onPress={handleLogout}>

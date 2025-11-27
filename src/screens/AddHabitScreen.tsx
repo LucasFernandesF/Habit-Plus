@@ -67,7 +67,6 @@ const AddHabitScreen = () => {
   };
 
   const handleDateSelect = (day: any) => {
-    // Criar data no fuso local (sem problemas de UTC)
     const selectedDate = new Date(day.dateString + 'T00:00:00');
     setStartDate(selectedDate);
     setShowCalendarModal(false);
@@ -82,20 +81,17 @@ const AddHabitScreen = () => {
     }
   };
 
-  // No AddHabitScreen, na função handleSaveHabit, adicione:
   const handleSaveHabit = async () => {
     if (!habitName.trim()) {
       Alert.alert('Erro', 'Por favor, digite um nome para o hábito.');
       return;
     }
 
-    // DEBUG: Verificar dias selecionados
     console.log('Dias selecionados:', selectedDays);
     console.log('Categoria selecionada:', selectedCategory.name);
 
     if (selectedDays.length === 0) {
       Alert.alert('Atenção', 'Nenhum dia selecionado. O hábito será mostrado todos os dias.');
-      // Continua mesmo sem dias selecionados
     }
 
     try {
@@ -108,7 +104,7 @@ const AddHabitScreen = () => {
         time: reminder ? reminderTime : undefined,
         completed: false,
         streak: 0,
-        days: selectedDays, // ← Isso está sendo salvo?
+        days: selectedDays, 
         reminder: reminder,
         reminderTime: reminder ? reminderTime : undefined,
         startDate: startDate,
