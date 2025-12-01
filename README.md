@@ -1,74 +1,68 @@
 # 🧠 Habit Tracker
 
-O **Habit Tracker** é um aplicativo para ajudar pessoas a **criar e manter hábitos diários** de forma simples e organizada.  
-O foco é melhorar a **disciplina, produtividade e bem-estar** do usuário.
+O **Habit Tracker** é um aplicativo desenvolvido para ajudar pessoas a criar, manter e acompanhar hábitos diários de forma simples e eficiente.  
+Ideal para melhorar disciplina, produtividade e bem-estar.
 
 ---
 
 ## 🚀 Funcionalidades
 
 - Criar hábitos personalizados  
-- Marcar hábitos concluídos (checklist)  
-- Ver estatísticas e gráficos de progresso  
+- Marcar hábitos concluídos diariamente  
+- Visualizar estatísticas e gráficos de progresso  
 - Receber notificações automáticas  
 
 ---
 
 ## ⚙️ Requisitos
 
-**Funcionais**
-- Cadastro e edição de hábitos  
-- Registro diário de conclusão  
-- Exibição de progresso e lembretes  
+### **Requisitos Funcionais**
+- Cadastro, edição e exclusão de hábitos  
+- Registro diário de conclusão (check-in)  
+- Exibição de progresso geral e por hábito  
+- Envio de lembretes automáticos  
 
-**Não Funcionais**
-- Interface simples e responsiva  
-- Carregamento rápido (< 2s)  
-- Dados protegidos e sincronizados em nuvem  
+### **Requisitos Não Funcionais**
+- Interface simples, intuitiva e responsiva  
+- Tempo de carregamento inferior a 2 segundos  
+- Armazenamento seguro e sincronizado em nuvem  
+- Suporte a múltiplos dispositivos  
+
+---
+
+## 💡 Tecnologias Utilizadas
+
+- **Front-end:** React Native (Expo)  
+- **Back-end:** Firebase + TypeScript  
+- **Banco de Dados:** Firestore  
+- **Autenticação:** Firebase Authentication  
 
 ---
 
-## 💡 Tecnologias
+## 🛠️ Como Executar o Projeto
 
-- **Front-end:** React Native / Expo  
-- **Back-end:** Firebase e typescript
-- **Banco de dados:** Firestore  
+### **📌 Pré-requisitos**
+
+- Node.js (v16 ou superior)  
+- npm ou yarn  
+- Expo CLI  
+- Conta no Firebase  
 
 ---
-## ⚙️ Como Executar o Projeto
-# 📌 Pré-requisitos
 
-  -**Node.js** (v16 ou superior)
-  -**npm** ou **yarn**
-  -**Expo CLI**
-  -**Conta no Firebase (para backend)**
+## 🔧 Passo a Passo
 
-## 🚀 Passo 1: Clonar o Repositório
-git clone https://github.com/seu-usuario/habit-tracker.git
-cd habit-tracker
+### ** 1. Clonar o Repositório**
 
-## 📦 Passo 2: Instalar Dependências
-npm install
-# ou
-yarn install
 
-## 🔥 Passo 3: Configurar Firebase
+  - git clone https://github.com/seu-usuario/habit-tracker.git
+  - cd habit-tracker
 
-Crie um projeto no Firebase Console.
-Ative:
+### ** 2. Instalar dependecias **
 
-  -Authentication (Email/Password)
-  -Firestore
+  - npm install
+  - yarn install
 
-Baixe o arquivo google-services.json (para Android)
-ou adicione manualmente as configurações no arquivo firebase.ts.
+### ** 3. Configurar firebase**
 
-# Configure as regras de segurança do Firestore (fornecidas no código do projeto).
 
-## ▶️ Passo 4: Iniciar o Aplicativo
-npx expo start
-
-📱 Passo 5: Executar em um Dispositivo
-
-Abra o app Expo Go (iOS/Android)
-Escaneie o QR Code exibido no terminal ou no navegador após iniciar o Expo
